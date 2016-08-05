@@ -6,7 +6,7 @@
 
     <groupId>com.pronoia.junit</groupId>
     <artifactId>mllp-junit</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 
     <name>MLLP JUnit Rules</name>
 

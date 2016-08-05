@@ -38,6 +38,8 @@ public class MllpClientResource extends ExternalResource {
     boolean reuseAddress;
     boolean tcpNoDelay = true;
 
+    boolean lazyConnect = false;
+
 
     /**
      * Use this constructor to avoid having the connection started by JUnit (since the port is still -1)
@@ -50,14 +52,25 @@ public class MllpClientResource extends ExternalResource {
         this.mllpPort = port;
     }
 
+    public MllpClientResource(int port, boolean lazyConnect) {
+        this.mllpPort = port;
+        this.lazyConnect = lazyConnect;
+    }
+
     public MllpClientResource(String host, int port) {
         this.mllpHost = host;
         this.mllpPort = port;
     }
 
+    public MllpClientResource(String host, int port, boolean lazyConnect) {
+        this.mllpHost = host;
+        this.mllpPort = port;
+        this.lazyConnect = lazyConnect;
+    }
+
     @Override
     protected void before() throws Throwable {
-        if (0 < mllpPort) {
+        if (0 < mllpPort  && !lazyConnect) {
             this.connect();
         }
 
@@ -111,7 +124,7 @@ public class MllpClientResource extends ExternalResource {
 
     public void disconnect() {
         try {
-            if (null != inputStream) {
+            if (null != clientSocket && null != inputStream) {
                 clientSocket.close();
             }
         } catch (IOException e) {
@@ -124,6 +137,10 @@ public class MllpClientResource extends ExternalResource {
     }
 
     public boolean isConnected() {
+        if (null == clientSocket) {
+            return false;
+        }
+
         return clientSocket.isConnected() && !clientSocket.isClosed();
     }
 
@@ -134,6 +151,14 @@ public class MllpClientResource extends ExternalResource {
 
     public void sendData(String data, boolean disconnectAfterSend) {
         byte[] payloadBytes = data.getBytes();
+
+        if (null == clientSocket) {
+            this.connect();
+        }
+
+        if (!isConnected()) {
+            throw new MllpJUnitResourceException("Cannot send message - client is not connected");
+        }
 
         try {
             outputStream.write(payloadBytes, 0, payloadBytes.length);
@@ -158,7 +183,7 @@ public class MllpClientResource extends ExternalResource {
             this.connect();
         }
 
-        if (!clientSocket.isConnected()) {
+        if (!isConnected()) {
             throw new MllpJUnitResourceException("Cannot send message - client is not connected");
         }
         if (null == outputStream) {
@@ -203,7 +228,7 @@ public class MllpClientResource extends ExternalResource {
             this.connect();
         }
 
-        if (!clientSocket.isConnected()) {
+        if (!isConnected()) {
             throw new MllpJUnitResourceException("Cannot send message - client is not connected");
         }
         if (null == outputStream) {
@@ -354,12 +379,12 @@ public class MllpClientResource extends ExternalResource {
         return availableInput.toString();
     }
 
-    public String sendMessageAndWaitForAcknowledgement(String hl7Data) throws SocketException, SocketTimeoutException {
+    public String sendFramedDataAndWaitForAcknowledgement(String hl7Data) throws SocketException, SocketTimeoutException {
         sendFramedData(hl7Data);
         return receiveFramedData();
     }
 
-    public String sendMessageAndWaitForAcknowledgement(String hl7Data, int acknwoledgementTimeout) throws SocketException, SocketTimeoutException {
+    public String sendFramedDataAndWaitForAcknowledgement(String hl7Data, int acknwoledgementTimeout) throws SocketException, SocketTimeoutException {
         sendFramedData(hl7Data);
         return receiveFramedData(acknwoledgementTimeout);
     }
@@ -436,4 +461,11 @@ public class MllpClientResource extends ExternalResource {
         this.tcpNoDelay = tcpNoDelay;
     }
 
+    public boolean isLazyConnect() {
+        return lazyConnect;
+    }
+
+    public void setLazyConnect(boolean lazyConnect) {
+        this.lazyConnect = lazyConnect;
+    }
 }
