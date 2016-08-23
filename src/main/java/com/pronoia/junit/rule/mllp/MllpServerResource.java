@@ -847,7 +847,7 @@ public class MllpServerResource extends ExternalResource {
                 log.error("Failed to find the end of the  MSH Segment");
             }
 
-            return null;
+            return defaulNackMessage;
         }
     }
 
