@@ -79,6 +79,7 @@ public class MllpServerResource extends ExternalResource {
     }
 
     public void startup() throws IOException {
+        log.info("startup");
         this.active = true;
         serverSocketThread = new ServerSocketThread(listenPort, backlog);
         if (0 >= listenPort) {
@@ -89,6 +90,7 @@ public class MllpServerResource extends ExternalResource {
     }
 
     public void shutdown() {
+        log.info("shutdown");
         this.active = false;
         serverSocketThread.shutdown();
         serverSocketThread = null;

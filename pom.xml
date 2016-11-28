@@ -6,7 +6,7 @@
 
     <groupId>com.pronoia.junit</groupId>
     <artifactId>mllp-junit</artifactId>
-    <version>0.2.1</version>
+    <version>0.2.2</version>
 
     <name>MLLP JUnit Rules</name>
 
@@ -34,17 +34,19 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- Testing -->
+        <dependency>
+            <groupId>com.pronoia.test</groupId>
+            <artifactId>tcp-test-util</artifactId>
+            <version>0.1.0</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Test Logging -->
         <dependency>
             <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
+            <artifactId>slf4j-simple</artifactId>
             <version>${slf4j-version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-            <version>${log4j-version}</version>
             <scope>test</scope>
         </dependency>
 
