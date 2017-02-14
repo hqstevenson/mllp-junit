@@ -6,7 +6,7 @@
 
     <groupId>com.pronoia.junit</groupId>
     <artifactId>mllp-junit</artifactId>
-    <version>0.2.2</version>
+    <version>0.2.3</version>
 
     <name>MLLP JUnit Rules</name>
 
@@ -38,7 +38,7 @@
         <dependency>
             <groupId>com.pronoia.test</groupId>
             <artifactId>tcp-test-util</artifactId>
-            <version>0.1.0</version>
+            <version>0.1.1</version>
             <scope>test</scope>
         </dependency>
 
