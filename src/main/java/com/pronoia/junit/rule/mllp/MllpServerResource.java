@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -92,10 +93,11 @@ public class MllpServerResource extends ExternalResource {
     public void shutdown() {
         log.info("shutdown");
         this.active = false;
-        serverSocketThread.shutdown();
-        serverSocketThread = null;
+        if (serverSocketThread != null) {
+            serverSocketThread.shutdown();
+            serverSocketThread = null;
+        }
     }
-
 
     @Override
     protected void before() throws Throwable {
@@ -439,9 +441,12 @@ public class MllpServerResource extends ExternalResource {
         int listenPort;
         int backlog = 5;
 
-        int acceptTimeout = 5000;
+        int maxBindAttempts = 12;
+        int acceptTimeout = 15000;
 
         boolean raiseExceptionOnAcceptTimeout;
+
+        ClientSocketThread clientSocketThread;
 
         public ServerSocketThread() throws IOException {
             bind();
@@ -481,7 +486,25 @@ public class MllpServerResource extends ExternalResource {
             if (0 >= listenPort) {
                 serverSocket.bind(null, backlog);
             } else {
-                serverSocket.bind(new InetSocketAddress(this.listenHost, this.listenPort), backlog);
+                InetSocketAddress bindAddress = new InetSocketAddress(this.listenHost, this.listenPort);
+                int bindAttemptCounter = 0;
+
+                while(!serverSocket.isBound()) {
+                    try {
+                        serverSocket.bind(bindAddress, backlog);
+                    } catch (BindException bindEx) {
+                        if (bindAttemptCounter < maxBindAttempts) {
+                            log.warn("Bind Attempt {} failed - retrying in {} milliseconds ", ++bindAttemptCounter, acceptTimeout);
+                            try {
+                                Thread.sleep(acceptTimeout);
+                            } catch (InterruptedException e) {
+                                log.warn("Sleeping for bind retry interrupted");
+                            }
+                        } else {
+                            throw bindEx;
+                        }
+                    }
+                }
             }
 
             if (0 >= this.listenPort) {
@@ -506,7 +529,7 @@ public class MllpServerResource extends ExternalResource {
                     clientSocket.setTcpNoDelay(false);
                     clientSocket.setSoLinger(false, -1);
                     clientSocket.setSoTimeout(5000);
-                    ClientSocketThread clientSocketThread = new ClientSocketThread(clientSocket);
+                    clientSocketThread = new ClientSocketThread(clientSocket);
                     clientSocketThread.setDaemon(true);
                     clientSocketThread.start();
                 } catch (SocketTimeoutException timeoutEx) {
@@ -516,16 +539,21 @@ public class MllpServerResource extends ExternalResource {
                     continue;
                 } catch (IOException e) {
                     log.warn("IOException creating Client Socket");
-                    try {
-                        clientSocket.close();
-                    } catch (IOException e1) {
-                        log.warn("Exceptiong encountered closing client socket after attempting to accept connection");
+                    if (clientSocket != null) {
+                        try {
+                            clientSocket.close();
+                        } catch (IOException e1) {
+                            log.warn("Exceptiong encountered closing client socket after attempting to accept connection");
+                        }
                     }
                     throw new MllpJUnitResourceException("IOException creating Socket", e);
                 }
             }
             log.info("No longer accepting connections - closing TCP Listener on port {}", serverSocket.getLocalPort());
             try {
+                if (clientSocketThread != null) {
+                    clientSocketThread.shutdown(true);
+                }
                 serverSocket.close();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -534,6 +562,17 @@ public class MllpServerResource extends ExternalResource {
         }
 
         public void shutdown() {
+            if (serverSocket != null) {
+                try {
+                    if (clientSocketThread != null) {
+                        clientSocketThread.shutdown(true);
+                        clientSocketThread = null;
+                    }
+                    serverSocket.close();
+                } catch (IOException e) {
+                    log.warn("Error closing server socket");
+                }
+            }
             this.interrupt();
         }
 
@@ -703,6 +742,16 @@ public class MllpServerResource extends ExternalResource {
             log.info("Connection Finished: {} -> {}", localAddress, remoteAddress);
         }
 
+        public void shutdown(boolean reset) {
+            if (clientSocket != null  &&  clientSocket.isConnected() && !clientSocket.isClosed()) {
+                if (reset) {
+                    resetConnection(clientSocket);
+                } else {
+                    closeConnection(clientSocket);
+                }
+            }
+        }
+
         /**
          * Read a MLLP-Framed message
          *
@@ -716,15 +765,20 @@ public class MllpServerResource extends ExternalResource {
                 // TODO:  Enhance this to read a bunch of characters and log, rather than log them one at a time
                 boolean waitingForStartOfBlock = true;
                 while (waitingForStartOfBlock) {
-                    int potentialStartCharacter = anInputStream.read();
-                    switch (potentialStartCharacter) {
-                        case END_OF_STREAM:
-                            return null;
-                        case START_OF_BLOCK:
-                            waitingForStartOfBlock = false;
-                            break;
-                        default:
-                            log.warn("START_OF_BLOCK character has not been received.  Out-of-band character received: {}", potentialStartCharacter);
+                    try {
+                        int potentialStartCharacter = anInputStream.read();
+                        switch (potentialStartCharacter) {
+                            case END_OF_STREAM:
+                                return null;
+                            case START_OF_BLOCK:
+                                waitingForStartOfBlock = false;
+                                break;
+                            default:
+                                log.warn("START_OF_BLOCK character has not been received.  Out-of-band character received: {}", potentialStartCharacter);
+                        }
+                    } catch (SocketTimeoutException timeoutEx) {
+                        log.info("Timeout before START_OF_BLOCK character received - no messages available");
+                        return null;
                     }
                 }
             } catch (SocketException socketEx) {
