@@ -23,12 +23,10 @@ public class MllpServerResource extends ExternalResource {
   public static final char END_OF_DATA = 0x0d;         // CR (carriage return)     - decimal 13, octal 015
   public static final int END_OF_STREAM = -1;          //
   public static final char SEGMENT_DELIMITER = 0x0d;   // CR (carriage return)     - decimal 13, octal 015
-  public static final char MESSAGE_TERMINATOR = 0x0a;  // LF (line feed, new line) - decimal 10, octal 012
+
   Logger log = LoggerFactory.getLogger(this.getClass());
   int listenPort;
   int backlog = 5;
-
-  int counter = 1;
 
   boolean active = true;
 
@@ -843,8 +841,7 @@ public class MllpServerResource extends ExternalResource {
     private String generateAcknowledgementMessage(String hl7Message, String acknowledgementCode) {
       final String defaulNackMessage =
           "MSH|^~\\&|||||||NACK||P|2.2" + SEGMENT_DELIMITER
-              + "MSA|AR|" + SEGMENT_DELIMITER
-              + MESSAGE_TERMINATOR;
+              + "MSA|AR|" + SEGMENT_DELIMITER;
 
       if (hl7Message == null) {
         log.error("Invalid HL7 message for parsing operation. Please check your inputs");
@@ -899,9 +896,6 @@ public class MllpServerResource extends ExternalResource {
               .append(acknowledgementCode).append(fieldSeparator)
               .append(mshFields[9]).append(fieldSeparator)
               .append(SEGMENT_DELIMITER);
-
-          // Terminate the message
-          ackBuilder.append(MESSAGE_TERMINATOR);
 
           return ackBuilder.toString();
         }

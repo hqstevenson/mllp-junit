@@ -5,15 +5,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 public class MllpClientResource extends ExternalResource {
+    public static Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
 
     static final char START_OF_BLOCK = 0x0b;
     static final char END_OF_BLOCK = 0x1c;
@@ -144,14 +149,12 @@ public class MllpClientResource extends ExternalResource {
         return clientSocket.isConnected() && !clientSocket.isClosed();
     }
 
-    public void sendData(String data) {
+    public void sendData(byte[] byteData) {
         boolean disconnectAfterSend = false;
-        this.sendData(data, disconnectAfterSend);
+        this.sendData(byteData, disconnectAfterSend);
     }
 
-    public void sendData(String data, boolean disconnectAfterSend) {
-        byte[] payloadBytes = data.getBytes();
-
+    public void sendData(byte[] byteData, boolean disconnectAfterSend) {
         if (null == clientSocket) {
             this.connect();
         }
@@ -161,7 +164,7 @@ public class MllpClientResource extends ExternalResource {
         }
 
         try {
-            outputStream.write(payloadBytes, 0, payloadBytes.length);
+            outputStream.write(byteData, 0, byteData.length);
         } catch (IOException e) {
             log.error("Unable to send raw string", e);
             throw new MllpJUnitResourceException("Unable to send raw string", e);
@@ -173,12 +176,32 @@ public class MllpClientResource extends ExternalResource {
         }
     }
 
-    public void sendFramedData(String hl7Message) {
+    public void sendData(String data) {
         boolean disconnectAfterSend = false;
-        this.sendFramedData(hl7Message, disconnectAfterSend);
+        this.sendData(data, disconnectAfterSend);
     }
 
-    public void sendFramedData(String hl7Message, boolean disconnectAfterSend) {
+    public void sendData(String data, boolean disconnectAfterSend) {
+        sendData(data, disconnectAfterSend, DEFAULT_CHARSET);
+    }
+
+    public void sendData(String data, Charset charset) {
+        boolean disconnectAfterSend = false;
+        this.sendData(data, disconnectAfterSend, charset);
+    }
+
+    public void sendData(String data, boolean disconnectAfterSend, Charset charset) {
+        byte[] payloadBytes = data.getBytes(charset);
+
+        this.sendData(payloadBytes, disconnectAfterSend);
+    }
+
+    public void sendFramedData(byte[] hl7Bytes) {
+        boolean disconnectAfterSend = false;
+        this.sendFramedData(hl7Bytes, disconnectAfterSend);
+    }
+
+    public void sendFramedData(byte[] hl7Bytes, boolean disconnectAfterSend) {
         if (null == clientSocket) {
             this.connect();
         }
@@ -189,14 +212,13 @@ public class MllpClientResource extends ExternalResource {
         if (null == outputStream) {
             throw new MllpJUnitResourceException("Cannot send message - output stream is null");
         }
-        byte[] payloadBytes = hl7Message.getBytes();
         try {
             if (sendStartOfBlock) {
                 outputStream.write(START_OF_BLOCK);
             } else {
                 log.warn("Not sending START_OF_BLOCK");
             }
-            outputStream.write(payloadBytes, 0, payloadBytes.length);
+            outputStream.write(hl7Bytes, 0, hl7Bytes.length);
             if (sendEndOfBlock) {
                 outputStream.write(END_OF_BLOCK);
             } else {
@@ -219,11 +241,33 @@ public class MllpClientResource extends ExternalResource {
         }
     }
 
-    public void sendFramedDataInMultiplePackets(String hl7Message, byte flushByte) {
-        sendFramedDataInMultiplePackets(hl7Message, flushByte, false);
+
+    public void sendFramedData(String hl7Message) {
+        boolean disconnectAfterSend = false;
+        this.sendFramedData(hl7Message, disconnectAfterSend);
     }
 
-    public void sendFramedDataInMultiplePackets(String hl7Message, byte flushByte, boolean disconnectAfterSend) {
+    public void sendFramedData(String hl7Message, Charset charset) {
+        boolean disconnectAfterSend = false;
+        this.sendFramedData(hl7Message, disconnectAfterSend, charset);
+    }
+
+    public void sendFramedData(String hl7Message, boolean disconnectAfterSend) {
+        this.sendFramedData(hl7Message, disconnectAfterSend, DEFAULT_CHARSET);
+    }
+
+    public void sendFramedData(String hl7Message, boolean disconnectAfterSend, Charset charset) {
+       byte[] hl7Bytes = hl7Message.getBytes(charset);
+
+       this.sendFramedData(hl7Bytes, disconnectAfterSend);
+    }
+
+    public void sendFramedDataInMultiplePackets(byte[] hl7Bytes, byte flushByte) {
+        boolean disconnectAfterSend = false;
+        sendFramedDataInMultiplePackets(hl7Bytes, flushByte, disconnectAfterSend);
+    }
+
+    public void sendFramedDataInMultiplePackets(byte[] hl7Bytes, byte flushByte, boolean disconnectAfterSend) {
         if (null == clientSocket) {
             this.connect();
         }
@@ -234,16 +278,15 @@ public class MllpClientResource extends ExternalResource {
         if (null == outputStream) {
             throw new MllpJUnitResourceException("Cannot send message - output stream is null");
         }
-        byte[] payloadBytes = hl7Message.getBytes();
         try {
             if (sendStartOfBlock) {
                 outputStream.write(START_OF_BLOCK);
             } else {
                 log.warn("Not sending START_OF_BLOCK");
             }
-            for (int i = 0; i < payloadBytes.length; ++i) {
-                outputStream.write(payloadBytes[i]);
-                if (flushByte == payloadBytes[i]) {
+            for (int i = 0; i < hl7Bytes.length; ++i) {
+                outputStream.write(hl7Bytes[i]);
+                if (flushByte == hl7Bytes[i]) {
                     outputStream.flush();
                 }
             }
@@ -269,11 +312,30 @@ public class MllpClientResource extends ExternalResource {
         }
     }
 
-    public String receiveFramedData() throws SocketException, SocketTimeoutException {
-        return receiveFramedData(soTimeout);
+    public void sendFramedDataInMultiplePackets(String hl7Message, byte flushByte) {
+        boolean disconnectAfterSend = false;
+        sendFramedDataInMultiplePackets(hl7Message, flushByte, disconnectAfterSend);
     }
 
-    public String receiveFramedData(int timout) throws SocketException, SocketTimeoutException {
+    public void sendFramedDataInMultiplePackets(String hl7Message, byte flushByte, Charset charset) {
+        boolean disconnectAfterSend = false;
+        sendFramedDataInMultiplePackets(hl7Message, flushByte, disconnectAfterSend, charset);
+    }
+
+    public void sendFramedDataInMultiplePackets(String hl7Message, byte flushByte, boolean disconnectAfterSend) {
+        this.sendFramedDataInMultiplePackets(hl7Message, flushByte, disconnectAfterSend, DEFAULT_CHARSET);
+    }
+    public void sendFramedDataInMultiplePackets(String hl7Message, byte flushByte, boolean disconnectAfterSend, Charset charset) {
+        byte[] hl7Bytes = hl7Message.getBytes(charset);
+
+        this.sendFramedDataInMultiplePackets(hl7Bytes, flushByte, disconnectAfterSend);
+    }
+
+    public byte[] receiveFramedBytes() throws SocketException, SocketTimeoutException {
+        return receiveFramedBytes(soTimeout);
+    }
+
+    public byte[] receiveFramedBytes(int timeout) throws SocketException, SocketTimeoutException {
         if (!isConnected()) {
             throw new MllpJUnitResourceException("Cannot receive acknowledgement - client is not connected");
         }
@@ -281,8 +343,8 @@ public class MllpClientResource extends ExternalResource {
             throw new MllpJUnitResourceException("Cannot receive acknowledgement - output stream is null");
         }
 
-        clientSocket.setSoTimeout(timout);
-        StringBuilder acknowledgement = new StringBuilder();
+        clientSocket.setSoTimeout(timeout);
+        ByteArrayOutputStream receivedBytes = new ByteArrayOutputStream();
         try {
             int firstByte = inputStream.read();
             if (START_OF_BLOCK != firstByte) {
@@ -294,7 +356,7 @@ public class MllpClientResource extends ExternalResource {
                         } catch (Exception ex) {
                             log.warn("Exception encountered closing socket after receiving END_OF_STREAM while waiting for START_OF_BLOCK");
                         }
-                        return "";
+                        return null;
                     } else {
                         log.error("Acknowledgement did not start with START_OF_BLOCK: {}", firstByte);
                         throw new MllpJUnitResourceCorruptFrameException("Message did not start with START_OF_BLOCK");
@@ -318,14 +380,14 @@ public class MllpClientResource extends ExternalResource {
                         readingMessage = false;
                         break;
                     default:
-                        acknowledgement.append((char) nextByte);
+                        receivedBytes.write(nextByte);
                 }
             }
         } catch (SocketTimeoutException timeoutEx) {
-            if (0 < acknowledgement.length()) {
+            if (0 < receivedBytes.size()) {
                 log.error("Timeout waiting for acknowledgement", timeoutEx);
             } else {
-                log.error("Timeout while reading acknowledgement\n" + acknowledgement.toString().replace('\r', '\n'), timeoutEx);
+                log.error("Timeout while reading acknowledgement\n" + receivedBytes.toString().replace('\r', '\n'), timeoutEx);
             }
             throw new MllpJUnitResourceTimeoutException("Timeout while reading acknowledgement", timeoutEx);
         } catch (IOException e) {
@@ -333,20 +395,47 @@ public class MllpClientResource extends ExternalResource {
             throw new MllpJUnitResourceException("Unable to read HL7 acknowledgement", e);
         }
 
-        return acknowledgement.toString();
+        return receivedBytes.toByteArray();
     }
 
-    public String receiveData() throws SocketException, SocketTimeoutException {
-        return receiveData(soTimeout);
+    public String receiveFramedData() throws SocketException, SocketTimeoutException {
+        return receiveFramedData(soTimeout);
     }
 
-    public String receiveData(int timeout) throws SocketException, SocketTimeoutException {
+    public String receiveFramedData(Charset charset) throws SocketException, SocketTimeoutException {
+        return receiveFramedData(soTimeout, charset);
+    }
+
+    public String receiveFramedData(int timeout) throws SocketException, SocketTimeoutException {
+        return receiveFramedData(timeout, DEFAULT_CHARSET);
+    }
+
+    public String receiveFramedData(int timeout, Charset charset) throws SocketException, SocketTimeoutException {
+        byte[] receivedBytes = receiveFramedBytes(timeout);
+
+        if (receivedBytes != null) {
+            if (receivedBytes.length > 0) {
+                return new String(receivedBytes, charset);
+            } else {
+                return  "";
+            }
+        }
+
+        return null;
+    }
+
+    public byte[] receiveBytes() throws SocketException, SocketTimeoutException {
+        return receiveBytes(soTimeout);
+    }
+
+    public byte[] receiveBytes(int timeout) throws SocketException, SocketTimeoutException {
         clientSocket.setSoTimeout(timeout);
-        StringBuilder availableInput = new StringBuilder();
+
+        ByteArrayOutputStream availableInput = new ByteArrayOutputStream();
 
         try {
             do {
-                availableInput.append((char) inputStream.read());
+                availableInput.write(inputStream.read());
             } while (0 < inputStream.available());
         } catch (SocketTimeoutException timeoutEx) {
             log.error("Timeout while receiving available input", timeoutEx);
@@ -356,27 +445,87 @@ public class MllpClientResource extends ExternalResource {
             throw new MllpJUnitResourceException("Exception encountered eating available input", e);
         }
 
-        return availableInput.toString();
+        return availableInput.toByteArray();
     }
 
-    public String eatData() throws SocketException, SocketTimeoutException {
-        return eatData(soTimeout);
+    public String receiveData() throws SocketException, SocketTimeoutException {
+        return receiveData(soTimeout);
     }
 
-    public String eatData(int timeout) throws SocketException {
+    public String receiveData(Charset charset) throws SocketException, SocketTimeoutException {
+        return receiveData(soTimeout, charset);
+    }
+
+    public String receiveData(int timeout) throws SocketException, SocketTimeoutException {
+        return receiveData(timeout, DEFAULT_CHARSET);
+    }
+
+    public String receiveData(int timeout, Charset charset) throws SocketException, SocketTimeoutException {
         clientSocket.setSoTimeout(timeout);
 
-        StringBuilder availableInput = new StringBuilder();
+        byte[] receivedBytes = this.receiveBytes(timeout);
+
+        if (receivedBytes != null) {
+            if (receivedBytes.length > 0) {
+                return new String(receivedBytes, charset);
+            } else {
+                return  "";
+            }
+        }
+
+        return null;
+    }
+
+    public byte[] eatBytes() throws SocketException, SocketTimeoutException {
+        return eatBytes(soTimeout);
+    }
+
+    public byte[] eatBytes(int timeout) throws SocketException {
+        clientSocket.setSoTimeout(timeout);
+
+        ByteArrayOutputStream availableInput = new ByteArrayOutputStream();
         try {
             while (0 < inputStream.available()) {
-                availableInput.append((char) inputStream.read());
+                availableInput.write(inputStream.read());
             }
         } catch (IOException e) {
             log.warn("Exception encountered eating available input", e);
             throw new MllpJUnitResourceException("Exception encountered eating available input", e);
         }
 
-        return availableInput.toString();
+        return availableInput.toByteArray();
+    }
+
+    public String eatData() throws SocketException, SocketTimeoutException, UnsupportedEncodingException {
+        return eatData(soTimeout);
+    }
+
+    public String eatData(int timeout) throws SocketException, UnsupportedEncodingException {
+        return eatData(timeout, DEFAULT_CHARSET);
+    }
+
+    public String eatData(int timeout, Charset charset) throws SocketException, UnsupportedEncodingException {
+        byte[] eatenBytes = this.eatBytes(timeout);
+
+        if (eatenBytes != null) {
+            if (eatenBytes.length > 0) {
+                return new String(eatenBytes, charset);
+            } else {
+                return  "";
+            }
+        }
+
+        return null;
+    }
+
+    public String sendFramedDataAndWaitForAcknowledgement(byte[] hl7Bytes) throws SocketException, SocketTimeoutException {
+        sendFramedData(hl7Bytes);
+        return receiveFramedData();
+    }
+
+    public String sendFramedDataAndWaitForAcknowledgement(byte[] hl7Bytes, int acknwoledgementTimeout) throws SocketException, SocketTimeoutException {
+        sendFramedData(hl7Bytes);
+        return receiveFramedData(acknwoledgementTimeout);
     }
 
     public String sendFramedDataAndWaitForAcknowledgement(String hl7Data) throws SocketException, SocketTimeoutException {
@@ -384,8 +533,18 @@ public class MllpClientResource extends ExternalResource {
         return receiveFramedData();
     }
 
+    public String sendFramedDataAndWaitForAcknowledgement(String hl7Data, Charset charset) throws SocketException, SocketTimeoutException {
+        sendFramedData(hl7Data, charset);
+        return receiveFramedData();
+    }
+
     public String sendFramedDataAndWaitForAcknowledgement(String hl7Data, int acknwoledgementTimeout) throws SocketException, SocketTimeoutException {
         sendFramedData(hl7Data);
+        return receiveFramedData(acknwoledgementTimeout);
+    }
+
+    public String sendFramedDataAndWaitForAcknowledgement(String hl7Data, int acknwoledgementTimeout, Charset charset) throws SocketException, SocketTimeoutException {
+        sendFramedData(hl7Data, charset);
         return receiveFramedData(acknwoledgementTimeout);
     }
 
