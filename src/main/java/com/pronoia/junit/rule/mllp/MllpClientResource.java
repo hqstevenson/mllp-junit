@@ -1,8 +1,20 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.pronoia.junit.rule.mllp;
-
-import org.junit.rules.ExternalResource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
@@ -17,8 +29,12 @@ import java.net.SocketTimeoutException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
+import org.junit.rules.ExternalResource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class MllpClientResource extends ExternalResource {
-    public static Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
+    public static final Charset DEFAULT_CHARSET = StandardCharsets.ISO_8859_1;
 
     static final char START_OF_BLOCK = 0x0b;
     static final char END_OF_BLOCK = 0x1c;
@@ -43,7 +59,7 @@ public class MllpClientResource extends ExternalResource {
     boolean reuseAddress;
     boolean tcpNoDelay = true;
 
-    boolean lazyConnect = false;
+    boolean lazyConnect;
 
 
     /**
@@ -75,7 +91,7 @@ public class MllpClientResource extends ExternalResource {
 
     @Override
     protected void before() throws Throwable {
-        if (0 < mllpPort  && !lazyConnect) {
+        if (0 < mllpPort && !lazyConnect) {
             this.connect();
         }
 
@@ -257,9 +273,9 @@ public class MllpClientResource extends ExternalResource {
     }
 
     public void sendFramedData(String hl7Message, boolean disconnectAfterSend, Charset charset) {
-       byte[] hl7Bytes = hl7Message.getBytes(charset);
+        byte[] hl7Bytes = hl7Message.getBytes(charset);
 
-       this.sendFramedData(hl7Bytes, disconnectAfterSend);
+        this.sendFramedData(hl7Bytes, disconnectAfterSend);
     }
 
     public void sendFramedDataInMultiplePackets(byte[] hl7Bytes, byte flushByte) {
@@ -325,6 +341,7 @@ public class MllpClientResource extends ExternalResource {
     public void sendFramedDataInMultiplePackets(String hl7Message, byte flushByte, boolean disconnectAfterSend) {
         this.sendFramedDataInMultiplePackets(hl7Message, flushByte, disconnectAfterSend, DEFAULT_CHARSET);
     }
+
     public void sendFramedDataInMultiplePackets(String hl7Message, byte flushByte, boolean disconnectAfterSend, Charset charset) {
         byte[] hl7Bytes = hl7Message.getBytes(charset);
 
@@ -369,18 +386,18 @@ public class MllpClientResource extends ExternalResource {
             while (readingMessage) {
                 int nextByte = inputStream.read();
                 switch (nextByte) {
-                    case -1:
-                        throw new MllpJUnitResourceCorruptFrameException("Reached end of stream before END_OF_BLOCK");
-                    case START_OF_BLOCK:
-                        throw new MllpJUnitResourceCorruptFrameException("Received START_OF_BLOCK before END_OF_BLOCK");
-                    case END_OF_BLOCK:
-                        if (END_OF_DATA != inputStream.read()) {
-                            throw new MllpJUnitResourceCorruptFrameException("END_OF_BLOCK was not followed by END_OF_DATA");
-                        }
-                        readingMessage = false;
-                        break;
-                    default:
-                        receivedBytes.write(nextByte);
+                case -1:
+                    throw new MllpJUnitResourceCorruptFrameException("Reached end of stream before END_OF_BLOCK");
+                case START_OF_BLOCK:
+                    throw new MllpJUnitResourceCorruptFrameException("Received START_OF_BLOCK before END_OF_BLOCK");
+                case END_OF_BLOCK:
+                    if (END_OF_DATA != inputStream.read()) {
+                        throw new MllpJUnitResourceCorruptFrameException("END_OF_BLOCK was not followed by END_OF_DATA");
+                    }
+                    readingMessage = false;
+                    break;
+                default:
+                    receivedBytes.write(nextByte);
                 }
             }
         } catch (SocketTimeoutException timeoutEx) {
@@ -417,7 +434,7 @@ public class MllpClientResource extends ExternalResource {
             if (receivedBytes.length > 0) {
                 return new String(receivedBytes, charset);
             } else {
-                return  "";
+                return "";
             }
         }
 
@@ -469,7 +486,7 @@ public class MllpClientResource extends ExternalResource {
             if (receivedBytes.length > 0) {
                 return new String(receivedBytes, charset);
             } else {
-                return  "";
+                return "";
             }
         }
 
@@ -511,7 +528,7 @@ public class MllpClientResource extends ExternalResource {
             if (eatenBytes.length > 0) {
                 return new String(eatenBytes, charset);
             } else {
-                return  "";
+                return "";
             }
         }
 
