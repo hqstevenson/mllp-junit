@@ -24,7 +24,7 @@
 
     <groupId>com.github.hqstevenson.junit</groupId>
     <artifactId>mllp-junit</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
 
     <name>MLLP JUnit Utilities</name>
     <description>

@@ -570,8 +570,8 @@ public class MllpServerResource extends ExternalResource {
             }
             try {
                 serverSocket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
+            } catch (IOException ioEx) {
+                log.info("Exception encountered closing serverSocket", ioEx);
             }
             log.info("Closed TCP Listener on port {}", serverSocket.getLocalPort());
         }
