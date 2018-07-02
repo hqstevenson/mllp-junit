@@ -14,23 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.pronoia.junit.rule.mllp;
+package com.pronoia.junit.mllp;
 
-
-public class MllpJUnitResourceTimeoutException extends MllpJUnitResourceException {
-    public MllpJUnitResourceTimeoutException(String message) {
+public class MllpJUnitResourceException extends RuntimeException {
+    public MllpJUnitResourceException(String message) {
         super(message);
     }
 
-    public MllpJUnitResourceTimeoutException(String message, Throwable cause) {
+    public MllpJUnitResourceException(String message, Throwable cause) {
         super(message, cause);
     }
 
-    public MllpJUnitResourceTimeoutException(Throwable cause) {
+    public MllpJUnitResourceException(Throwable cause) {
         super(cause);
     }
 
-    public MllpJUnitResourceTimeoutException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+    public MllpJUnitResourceException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);
     }
 }

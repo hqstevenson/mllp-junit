@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.pronoia.junit.rule.mllp;
+package com.pronoia.junit.mllp;
 
-import com.pronoia.test.util.tcp.SimpleTcpClient;
+import com.pronoia.util.tcp.SimpleTcpClient;
 
 import org.junit.Rule;
 import org.junit.Test;

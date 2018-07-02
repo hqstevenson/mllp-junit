@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.pronoia.junit.rule.mllp;
+package com.pronoia.junit.mllp;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
